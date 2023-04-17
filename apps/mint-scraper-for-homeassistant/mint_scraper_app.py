@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 from collections.abc import Callable
 
 import appdaemon.plugins.mqtt.mqttapi as mqtt
 from mint_scraper import MintScraper
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 class MintScrapperApp(mqtt.Mqtt):
@@ -40,6 +43,7 @@ class MintScrapperApp(mqtt.Mqtt):
         mint_email = self.args["mint_email"]
 
         self.log("-- Initializing Mint API")
+        self.log(f"PATH {dir_path}")
         scraper = MintScraper(
             email=mint_email,
             password=mint_password,
@@ -52,6 +56,8 @@ class MintScrapperApp(mqtt.Mqtt):
             start=datetime.datetime.now(),
             scraper=scraper,
         )
+        self.log("-- Registered...")
+        self.log(scraper)
 
         scraper.scrape_or_load()
         self.log("::mintapi... Detected %d accounts", len(scraper.mint_data))
@@ -62,12 +68,7 @@ class MintScrapperApp(mqtt.Mqtt):
         if self.mqtt.is_client_connected():
             self.log("-- Registering Callback: callback_send_data")
 
-            self.run_every(
-                callback=self.callback_send_data,
-                start=datetime.datetime.now(),
-                interval=60 * 5,
-                scraper=scraper,
-            )
+            # self.run_every(
 
     def callback_get_data(self, cb_args) -> Callable:
         """Define data retrieval callback."""
@@ -79,7 +80,7 @@ class MintScrapperApp(mqtt.Mqtt):
         my_scraper: MintScraper = cb_args["scraper"]
         self.send_mqtt_data(scraper=my_scraper)
 
-    def _convert_bool_to_string(self, obj: any) -> any:
+    def _convert_bool_to_string(self, obj):
         """Convert json bool values into string representations."""
         if isinstance(obj, bool):
             return str(obj).lower()

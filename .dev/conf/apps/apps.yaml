@@ -1,0 +1,8 @@
+---
+mint-scraper-for-home-assistant:
+    module: mint_scraper_app
+    class: MintScrapperApp
+    mint_mfa_token: !secret mint_mfa_token
+    mint_password: !secret mint_password
+    mint_email: !secret mint_email
+

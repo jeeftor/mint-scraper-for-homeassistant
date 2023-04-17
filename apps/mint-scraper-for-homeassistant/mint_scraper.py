@@ -10,6 +10,7 @@ from dateutil.parser import isoparse
 from mintapi.api import Mint
 
 logger = logging.getLogger("mintapi")
+logging.basicConfig(level=logging.DEBUG)
 
 
 class MintScraper:
@@ -30,6 +31,7 @@ class MintScraper:
 
     def scrape_or_load(self) -> None:
         """Decides whether to scrape or load the data from the data file."""
+        logger.info("--Calling scrape or load")
         if exists("mint.json"):
             raw_data = self.load_raw_scrape_data("mint.json")
 
@@ -50,6 +52,7 @@ class MintScraper:
                 )
                 raw_data = self.scrape()
         else:
+            logger.info("--Calling scrape")
             raw_data = self.scrape()
         # Parse raw data
         self.mint_data = self._parse_mint_data(raw_data=raw_data)
