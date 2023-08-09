@@ -9,6 +9,16 @@ from collections.abc import Callable
 import appdaemon.plugins.mqtt.mqttapi as mqtt
 from mint_scraper import MintScraper
 
+
+from pathlib import Path
+try:   
+    # There seem to be some issues in Alpine where the chromium and chromium-webdriver and selinium don't fulyl match
+    # by symlinking chromium to google-chrome we can solve that issue and not have things crash
+    Path( '/usr/bin/google-chrome').symlink_to( '/usr/lib/chromium/chromium-launcher.sh')
+except FileExistsError:
+    pass
+
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
