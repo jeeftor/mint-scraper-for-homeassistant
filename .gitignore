@@ -3,3 +3,5 @@
 /.dev/conf/namespaces/
 /.dev/conf/www/
 .dev/conf/secrets.yaml
+/.dev/conf/secrets.yaml
+.dev/conf/secrets.yaml
