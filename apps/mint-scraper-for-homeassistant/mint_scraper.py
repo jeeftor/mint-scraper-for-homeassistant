@@ -10,7 +10,7 @@ from dateutil.parser import isoparse
 from mintapi.api import Mint
 
 logger = logging.getLogger("mintapi")
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 class MintScraper:
@@ -77,71 +77,165 @@ class MintScraper:
         self.write_data_to_disk(raw_data)
         return raw_data
 
+    def _parse_mint_data(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Parse the mint data."""
+        logger.info("Parsing MINT data")
+        return [
+            self._parse_account_data(x) for x in raw_data if x["type"] == "BankAccount"
+        ]
+
+    def _build_topics(self, account) -> dict:
+        """Build all the various topics for a specific account"""
+        topics = {
+            key: value.replace(" ", "_").lower()
+            for key, value in {
+                "state_topic": f'mint/data/{account["fiName"]}/{account["name"]}_{account["id"]}',
+                "attribute_topic": f'mint/data/{account["fiName"]}/{account["name"]}_attributes_{account["id"]}',
+                "discovery_topic_balance": f'homeassistant/sensor/mint_{account["id"]}/account_balance/config',
+                "discovery_topic_update": f'homeassistant/sensor/mint_{account["id"]}/last_update/config',
+                "discovery_topic_error": f'homeassistant/binary_sensor/mint_{account["id"]}/error/config',
+            }.items()
+        }
+        return topics
+
+    def _build_attribute_payload(self, account):
+        """Extract attributes from a MINT palyload."""
+        keys_to_extract = [
+            "availableBalance",
+            "interestRate",
+            "cpAccountNumberLast4",
+            "value",
+            "currentBalance",
+            "type",
+            "name",
+            "currency",
+            "fiName",
+        ]  # List of keys you want to extract
+        output_dict = {key: account[key] for key in keys_to_extract if key in account}
+        return output_dict
+
+    def _build_payloads(self, account, topics):
+        """Build out payloads for a specific account."""
+
+        payloads = {
+            "discovery_payload_balance": self._build_discovery_payload(
+                account,
+                sensor_suffix="balance",
+                object_id=f'mint {account["fiName"]} {account["name"]} balance',
+                state_topic=topics["state_topic"],
+                state_class="measurement",
+                value_template="{{value_json.availableBalance}}",
+                unit_of_measurement=account["currency"],
+                json_attributes_template="{{value_json | tojson}}",
+                json_attributes_topic=topics["attribute_topic"],
+                force_update=True,
+                icon=self._get_icon(account),
+            ),
+            "discovery_payload_update": self._build_discovery_payload(
+                account,
+                sensor_suffix="updated",
+                state_topic=topics["state_topic"],
+                device_class="timestamp",
+                object_id=f'mint {account["fiName"]} {account["name"]} last update',
+                value_template="{{ value_json.metaData.lastUpdatedDate | as_datetime }}",
+                icon="mdi:update",
+            ),
+            "discovery_payload_error": self._build_discovery_payload(
+                account,
+                sensor_suffix="error",
+                entity_category="diagnostic",
+                state_topic=topics["attribute_topic"],
+                sensor_type="binary_sensor",
+                object_id=f'mint {account["fiName"]} {account["name"]} error',
+                value_template="{{value_json.isError }}",
+                payload_on="true",
+                payload_off="false",
+                icon="mdi:alert-circle",
+            ),
+            "state_payload": account,
+            "attribute_payload": self._build_attribute_payload(account),
+        }
+        return payloads
+
     def _parse_mint_data(self, raw_data) -> list[dict]:
         """Prase out the mint data adding a few "extra" stuff."""
         logger.info("Parsing MINT data")
-        return [
-            {
-                "state_topic": f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-                    " ",
-                    "_",
-                ).lower(),
-                "discovery_topic_balance": f'homeassistant/sensor/mint_{x["id"]}/account_balance/config',
-                "discovery_payload_balance": self._build_discovery_payload(
-                    x,
-                    sensor_suffix="balance",
-                    object_id=f'mint {x["fiName"]} {x["name"]} balance',
-                    state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-                        " ",
-                        "_",
-                    ).lower(),
-                    state_class="measurement",
-                    value_template="{{value_json.AvailableBalance}}",
-                    unit_of_measurement=x["currency"],
-                    json_attributes_template="{{value_json | tojson}}",
-                    # json_attributes_template="{%- set j = value_json | tojson -%}{{ {'type':j['type'],'bankAccountType':j['bankAccountType'],'availableBalance':j['availableBalance'],'interestRate':j['interestRate'],'name':j['name'],'value':j['value'],'accountStatus':j['accountStatus'],'systemStatus':j['systemStatus'],'currency':j['currency'],'currentBalance':j['currentBalance'],'cpAccountName':j['cpAccountName'],'cpAccountNumberLast4':j['cpAccountNumberLast4'],'fiName':j['fiName']} }}",
-                    json_attributes_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-                        " ",
-                        "_",
-                    ).lower(),
-                    force_update=True,
-                    icon=self._get_icon(x),
-                ),
-                "discovery_topic_update": f'homeassistant/sensor/mint_{x["id"]}/last_update/config',
-                "discovery_payload_update": self._build_discovery_payload(
-                    x,
-                    sensor_suffix="updated",
-                    state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-                        " ",
-                        "_",
-                    ).lower(),
-                    device_class="timestamp",
-                    object_id=f'mint {x["fiName"]} {x["name"]} last update',
-                    value_template="{{ value_json.metaData.lastUpdatedDate | as_datetime }}",
-                    icon="mdi:update",
-                ),
-                "discovery_topic_error": f'homeassistant/binary_sensor/mint_{x["id"]}/error/config',
-                "discovery_payload_error": self._build_discovery_payload(
-                    x,
-                    sensor_suffix="error",
-                    entity_category="diagnostic",
-                    state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-                        " ",
-                        "_",
-                    ).lower(),
-                    sensor_type="binary_sensor",
-                    object_id=f'mint {x["fiName"]} {x["name"]} error',
-                    value_template="{{value_json.isError }}",
-                    payload_on="true",
-                    payload_off="false",
-                    icon="mdi:alert-circle",
-                ),
-                "state_payload": x,
-            }
-            for x in raw_data
+
+        data = []
+        for x in raw_data:
             # Only get banking data
-            if x["type"] == "BankAccount"
-        ]
+            if x["type"] == "BankAccount":
+                topics = self._build_topics(x)
+                topics.update(self._build_payloads(account=x, topics=topics))
+                data.append(topics)
+
+        return data
+
+        # return [
+        #     {
+        #         "state_topic": f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
+        #             " ",
+        #             "_",
+        #         ).lower(),
+        #         "discovery_topic_balance": f'homeassistant/sensor/mint_{x["id"]}/account_balance/config',
+        #         "discovery_payload_balance": self._build_discovery_payload(
+        #             x,
+        #             sensor_suffix="balance",
+        #             object_id=f'mint {x["fiName"]} {x["name"]} balance',
+        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
+        #                 " ",
+        #                 "_",
+        #             ).lower(),
+        #             state_class="measurement",
+        #             value_template="{{value_json.AvailableBalance}}",
+        #             unit_of_measurement=x["currency"],
+        #             json_attributes_template="{{value_json | tojson}}",
+        #             json_attributes_topic=f'mint/data/{x["fiName"]}/{x["name"]}_attributes_{x["id"]}'.replace(
+        #                 " ",
+        #                 "_",
+        #             ).lower(),
+        #             force_update=True,
+        #             icon=self._get_icon(x),
+        #         ),
+        #         "attribute_topic": f'mint/data/{x["fiName"]}/{x["name"]}_attributes_{x["id"]}'.replace(
+        #             " ",
+        #             "_",
+        #         ).lower(),
+        #         "discovery_topic_update": f'homeassistant/sensor/mint_{x["id"]}/last_update/config',
+        #         "discovery_payload_update": self._build_discovery_payload(
+        #             x,
+        #             sensor_suffix="updated",
+        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
+        #                 " ",
+        #                 "_",
+        #             ).lower(),
+        #             device_class="timestamp",
+        #             object_id=f'mint {x["fiName"]} {x["name"]} last update',
+        #             value_template="{{ value_json.metaData.lastUpdatedDate | as_datetime }}",
+        #             icon="mdi:update",
+        #         ),
+        #         "discovery_topic_error": f'homeassistant/binary_sensor/mint_{x["id"]}/error/config',
+        #         "discovery_payload_error": self._build_discovery_payload(
+        #             x,
+        #             sensor_suffix="error",
+        #             entity_category="diagnostic",
+        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
+        #                 " ",
+        #                 "_",
+        #             ).lower(),
+        #             sensor_type="binary_sensor",
+        #             object_id=f'mint {x["fiName"]} {x["name"]} error',
+        #             value_template="{{value_json.isError }}",
+        #             payload_on="true",
+        #             payload_off="false",
+        #             icon="mdi:alert-circle",
+        #         ),
+        #         "state_payload": x,
+        #     }
+        #     for x in raw_data
+        #     # Only get banking data
+        #     if x["type"] == "BankAccount"
+        # ]
 
     def _build_discovery_payload(
         self,
