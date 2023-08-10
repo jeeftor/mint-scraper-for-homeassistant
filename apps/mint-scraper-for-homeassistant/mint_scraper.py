@@ -51,8 +51,10 @@ class MintScraper:
                 )
                 raw_data = self.scrape()
         else:
+            logger.info("Using Cached MINT data - only refreshing at 4 hr intervals ")
             raw_data = self.scrape()
         # Parse raw data
+
         self.mint_data = self._parse_mint_data(raw_data=raw_data)
 
     def scrape(self) -> list[dict[Any, Any]]:
@@ -77,13 +79,6 @@ class MintScraper:
         self.write_data_to_disk(raw_data)
         return raw_data
 
-    def _parse_mint_data(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Parse the mint data."""
-        logger.info("Parsing MINT data")
-        return [
-            self._parse_account_data(x) for x in raw_data if x["type"] == "BankAccount"
-        ]
-
     def _build_topics(self, account) -> dict:
         """Build all the various topics for a specific account"""
         topics = {
@@ -102,14 +97,14 @@ class MintScraper:
         """Extract attributes from a MINT palyload."""
         keys_to_extract = [
             "availableBalance",
-            "interestRate",
             "cpAccountNumberLast4",
-            "value",
-            "currentBalance",
-            "type",
-            "name",
             "currency",
+            "currentBalance",
             "fiName",
+            "interestRate",
+            "investmentType" "name",
+            "type",
+            "value",
         ]  # List of keys you want to extract
         output_dict = {key: account[key] for key in keys_to_extract if key in account}
         return output_dict
@@ -124,7 +119,7 @@ class MintScraper:
                 object_id=f'mint {account["fiName"]} {account["name"]} balance',
                 state_topic=topics["state_topic"],
                 state_class="measurement",
-                value_template="{{value_json.availableBalance}}",
+                value_template="{{value_json.get('availableBalance', value_json.get('currentBalance'))}}",
                 unit_of_measurement=account["currency"],
                 json_attributes_template="{{value_json | tojson}}",
                 json_attributes_topic=topics["attribute_topic"],
@@ -164,78 +159,13 @@ class MintScraper:
         data = []
         for x in raw_data:
             # Only get banking data
-            if x["type"] == "BankAccount":
+            if x["type"] in ["BankAccount", "InvestmentAccount"]:
                 topics = self._build_topics(x)
                 topics.update(self._build_payloads(account=x, topics=topics))
                 data.append(topics)
-
+            else:
+                logger.info("   >> Not Parsing {}".format(x["type"]))
         return data
-
-        # return [
-        #     {
-        #         "state_topic": f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-        #             " ",
-        #             "_",
-        #         ).lower(),
-        #         "discovery_topic_balance": f'homeassistant/sensor/mint_{x["id"]}/account_balance/config',
-        #         "discovery_payload_balance": self._build_discovery_payload(
-        #             x,
-        #             sensor_suffix="balance",
-        #             object_id=f'mint {x["fiName"]} {x["name"]} balance',
-        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-        #                 " ",
-        #                 "_",
-        #             ).lower(),
-        #             state_class="measurement",
-        #             value_template="{{value_json.AvailableBalance}}",
-        #             unit_of_measurement=x["currency"],
-        #             json_attributes_template="{{value_json | tojson}}",
-        #             json_attributes_topic=f'mint/data/{x["fiName"]}/{x["name"]}_attributes_{x["id"]}'.replace(
-        #                 " ",
-        #                 "_",
-        #             ).lower(),
-        #             force_update=True,
-        #             icon=self._get_icon(x),
-        #         ),
-        #         "attribute_topic": f'mint/data/{x["fiName"]}/{x["name"]}_attributes_{x["id"]}'.replace(
-        #             " ",
-        #             "_",
-        #         ).lower(),
-        #         "discovery_topic_update": f'homeassistant/sensor/mint_{x["id"]}/last_update/config',
-        #         "discovery_payload_update": self._build_discovery_payload(
-        #             x,
-        #             sensor_suffix="updated",
-        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-        #                 " ",
-        #                 "_",
-        #             ).lower(),
-        #             device_class="timestamp",
-        #             object_id=f'mint {x["fiName"]} {x["name"]} last update',
-        #             value_template="{{ value_json.metaData.lastUpdatedDate | as_datetime }}",
-        #             icon="mdi:update",
-        #         ),
-        #         "discovery_topic_error": f'homeassistant/binary_sensor/mint_{x["id"]}/error/config',
-        #         "discovery_payload_error": self._build_discovery_payload(
-        #             x,
-        #             sensor_suffix="error",
-        #             entity_category="diagnostic",
-        #             state_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
-        #                 " ",
-        #                 "_",
-        #             ).lower(),
-        #             sensor_type="binary_sensor",
-        #             object_id=f'mint {x["fiName"]} {x["name"]} error',
-        #             value_template="{{value_json.isError }}",
-        #             payload_on="true",
-        #             payload_off="false",
-        #             icon="mdi:alert-circle",
-        #         ),
-        #         "state_payload": x,
-        #     }
-        #     for x in raw_data
-        #     # Only get banking data
-        #     if x["type"] == "BankAccount"
-        # ]
 
     def _build_discovery_payload(
         self,
@@ -314,10 +244,22 @@ class MintScraper:
         # Return data
         return discovery_payload
 
-    def _get_icon(self, account_type: str) -> str:
-        if account_type["bankAccountType"] == "CHECKING":
-            return "mdi:checkbook"
-        return "mdi:piggy-bank"
+    def _get_icon(self, account: dict) -> str:
+        """Sets the icons based on the account type..."""
+
+        if account["type"] == "BankAccount":
+            if account["bankAccountType"] == "CHECKING":
+                return "mdi:checkbook"
+            return "mdi:piggy-bank"
+        if account["type"] == "InvestmentAccount":
+            return "mdi:chart-line"
+        # mdi:cash-multiple
+        # mdi:cash
+        # mdi:currency-usd
+        # mdi:currency-eur
+        # mdi:chart-line
+        # mdi:chart-line-stacked
+        # mdi:chart-line-variant
 
     def write_data_to_disk(self, raw_data: str) -> None:
         """Write the current set of data to disk."""
