@@ -106,7 +106,15 @@ class MintScraper:
             "type",
             "value",
         ]  # List of keys you want to extract
+
         output_dict = {key: account[key] for key in keys_to_extract if key in account}
+
+        if "interestRate" in output_dict:
+            logger.info("Building a percent")
+            output_dict[
+                "interestPercent"
+            ] = f'{round(output_dict["interestRate"] * 100.0,2)}%'
+
         return output_dict
 
     def _build_payloads(self, account, topics):
