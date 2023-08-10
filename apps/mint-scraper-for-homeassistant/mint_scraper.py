@@ -31,7 +31,6 @@ class MintScraper:
 
     def scrape_or_load(self) -> None:
         """Decides whether to scrape or load the data from the data file."""
-        logger.info("--Calling scrape or load")
         if exists("mint.json"):
             raw_data = self.load_raw_scrape_data("mint.json")
 
@@ -52,7 +51,6 @@ class MintScraper:
                 )
                 raw_data = self.scrape()
         else:
-            logger.info("--Calling scrape")
             raw_data = self.scrape()
         # Parse raw data
         self.mint_data = self._parse_mint_data(raw_data=raw_data)
@@ -98,10 +96,14 @@ class MintScraper:
                         "_",
                     ).lower(),
                     state_class="measurement",
-                    value_template="{{value_json.value}}",
+                    value_template="{{value_json.AvailableBalance}}",
                     unit_of_measurement=x["currency"],
                     json_attributes_template="{{value_json | tojson}}",
-                    json_attributes_topic="/mint/data/attributes",
+                    # json_attributes_template="{%- set j = value_json | tojson -%}{{ {'type':j['type'],'bankAccountType':j['bankAccountType'],'availableBalance':j['availableBalance'],'interestRate':j['interestRate'],'name':j['name'],'value':j['value'],'accountStatus':j['accountStatus'],'systemStatus':j['systemStatus'],'currency':j['currency'],'currentBalance':j['currentBalance'],'cpAccountName':j['cpAccountName'],'cpAccountNumberLast4':j['cpAccountNumberLast4'],'fiName':j['fiName']} }}",
+                    json_attributes_topic=f'mint/data/{x["fiName"]}/{x["name"]}_{x["id"]}'.replace(
+                        " ",
+                        "_",
+                    ).lower(),
                     force_update=True,
                     icon=self._get_icon(x),
                 ),
