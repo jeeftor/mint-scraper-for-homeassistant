@@ -9,6 +9,16 @@ import appdaemon.plugins.mqtt.mqttapi as mqtt
 from mint_scraper import MintScraper
 
 
+# Alpine has some chrome driver issues where chrome/selinium/chromium/chromedriver dont match
+# so we can set a symilnk betweeen crhomium and google-chrome which should make things work
+from pathlib import Path
+
+try:
+    Path("/usr/bin/google-chrome").symlink_to("/usr/lib/chromium/chromium-launcher.sh")
+except FileExistsError:
+    pass
+
+
 class MintScrapperApp(mqtt.Mqtt):
     """Appdaemon app definition."""
 
@@ -39,6 +49,8 @@ class MintScrapperApp(mqtt.Mqtt):
         mint_password = self.args["mint_password"]
         mint_email = self.args["mint_email"]
 
+        self.set_log_level("DEBUG")
+
         self.log("-- Initializing Mint API")
         scraper = MintScraper(
             email=mint_email,
@@ -46,26 +58,41 @@ class MintScrapperApp(mqtt.Mqtt):
             mfa_token=mfa_token,
         )
 
-        self.log("-- Registering Callback: callback_get_data")
-        self.run_hourly(
+        get_data_interval = 60 * 60
+        self.log(
+            "-- [callback] Registering Callback: callback_get_data ever %d seconds",
+            get_data_interval,
+        )
+        self.run_every(
             callback=self.callback_get_data,
             start=datetime.datetime.now(),
+            interval=get_data_interval,
             scraper=scraper,
         )
 
+        # Make an initial call to MINT
         scraper.scrape_or_load()
-        self.log("::mintapi... Detected %d accounts", len(scraper.mint_data))
+        self.log("-- [mintapi] Detected %d accounts", len(scraper.mint_data))
 
         self.log("-- Initializing MQTT")
         self.mqtt = self.get_plugin_api("MQTT")
 
         if self.mqtt.is_client_connected():
-            self.log("-- Registering Callback: callback_send_data")
+            callback_interval = 60 * 60
+
+            # Make initial send at startup
+            self.log("-- Calling send data @ startup")
+
+            self.callback_send_data({"scraper": scraper})
+            self.log(
+                "-- [callback] Registering Callback: callback_send_data every: %d seconds",
+                callback_interval,
+            )
 
             self.run_every(
                 callback=self.callback_send_data,
                 start=datetime.datetime.now(),
-                interval=60 * 5,
+                interval=callback_interval,
                 scraper=scraper,
             )
 
@@ -76,6 +103,7 @@ class MintScrapperApp(mqtt.Mqtt):
 
     def callback_send_data(self, cb_args) -> Callable:
         """Define MQTT Sending callback."""
+        self.log("--Calling send_data callback")
         my_scraper: MintScraper = cb_args["scraper"]
         self.send_mqtt_data(scraper=my_scraper)
 
@@ -108,6 +136,18 @@ class MintScrapperApp(mqtt.Mqtt):
             # Process state data
             topic = entry["state_topic"]
             payload = json.dumps(self._convert_bool_to_string(entry["state_payload"]))
-
-            self.log("send_mqtt_data::Publishing State data")
             self.mqtt_publish(topic, payload)
+
+            self.log("send_mqtt_data::Publishing State data to {}".format(topic))
+
+            attribute_topic = entry["attribute_topic"]
+            attribute_payload = json.dumps(
+                self._convert_bool_to_string(entry["attribute_payload"])
+            )
+
+            self.log(
+                "send_mqtt_data::Publishing attribute data to {}".format(
+                    attribute_topic
+                )
+            )
+            self.mqtt_publish(attribute_topic, attribute_payload)

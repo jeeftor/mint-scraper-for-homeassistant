@@ -5,19 +5,25 @@ This is an [AppDaemon Addon](https://github.com/hassio-addons/addon-appdaemon) f
 
 ![](docs/image.jpg)
 
-<!--[![GitHub Release][releases-shield]][releases]
+
+[![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
+[![hacs][hacsbadge]][hacs]
+[![Community Forum][forum-shield]][forum]
+
+
+<!--[![GitHub Release][releases-shield]][releases]
+
 [![License][license-shield]](LICENSE)
 
 [![pre-commit][pre-commit-shield]][pre-commit]
 [![Black][black-shield]][black]
 
-[![hacs][hacsbadge]][hacs]
 [![Project Maintenance][maintenance-shield]][user_profile]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
 [![Discord][discord-shield]][discord]
-[![Community Forum][forum-shield]][forum]-->
+-->
 
 
 ## Configuration & Requirements
