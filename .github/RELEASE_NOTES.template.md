@@ -1,4 +1,4 @@
-[![downloads](https://img.shields.io/github/downloads/jeeftor/mint-scraper-for-homeassistant/VERSION_TAG/total?style=for-the-badge)](http://github.com/jeeftor/mint-scraper-for-homeassistant/releases/VERSION_TAG)
+[![downloads](https://img.shields.io/github/downloads/jeeftor/mint-scraper-for-homeassistant/VERSION_TAG/total)](http://github.com/jeeftor/mint-scraper-for-homeassistant/releases/VERSION_TAG)
 
 <!--:warning: This major/minor change contains a breaking change.-->
 
