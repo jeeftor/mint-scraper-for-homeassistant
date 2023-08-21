@@ -1,5 +1,6 @@
 """Wrapper for mintapi python library to handle scraping."""
 
+
 import json
 import logging
 import time
@@ -105,6 +106,8 @@ class MintScraper:
             "investmentType" "name",
             "type",
             "value",
+            "bankAccountType",
+            "creditAccountType",
         ]  # List of keys you want to extract
 
         output_dict = {key: account[key] for key in keys_to_extract if key in account}
