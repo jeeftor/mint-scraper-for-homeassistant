@@ -8,7 +8,7 @@ This is an [AppDaemon Addon](https://github.com/hassio-addons/addon-appdaemon) f
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 [![github-check-status](https://img.shields.io/github/checks-status/jeeftor/mint-scraper-for-homeassistant/master)](https://github.com/jeeftor/mint-scraper-for-homeassistant/actions?query=branch%3Amaster)
-[![last-release](https://img.shields.io/github/v/release/jeeftor/mint-scraper-for-homeassistant.svg)](https://github.com/jeeftor/mint-scraper-for-homeassistant//releases)
+[![last-release](https://img.shields.io/github/v/release/jeeftor/mint-scraper-for-homeassistant.svg)](https://github.com/jeeftor/mint-scraper-for-homeassistant/releases)
 [![downloads-latest](https://img.shields.io/github/downloads/jeeftor/mint-scraper-for-homeassistant/latest/total)](http://github.com/jeeftor/mint-scraper-for-homeassistant/releases/latest)
 
 ## Configuration & Requirements
