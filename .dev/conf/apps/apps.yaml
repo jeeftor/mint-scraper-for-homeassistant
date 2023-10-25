@@ -5,4 +5,3 @@ mint-scraper-for-home-assistant:
     mint_mfa_token: !secret mint_mfa_token
     mint_password: !secret mint_password
     mint_email: !secret mint_email
-

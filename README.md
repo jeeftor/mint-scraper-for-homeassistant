@@ -1,16 +1,15 @@
 # Mint Financial Data Scraper for Home Assistant (AppDaemon)
+
 ![](docs/allyourmintarebelongtous.png)
 
 This is an [AppDaemon Addon](https://github.com/hassio-addons/addon-appdaemon) for HomeAssistant that will log into a Mint account and scrape bank account data to be sent via MQTT into Home Assistant. It takes advantage of the [`mintapi`](https://github.com/mintapi/mintapi) python project to scrape data and then parses and sends the data over MQTT. Utilizing [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#discovery-options) various entities for account balances will be created in HomeAssistant.
 
 ![](docs/image.jpg)
 
-
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
 [![hacs][hacsbadge]][hacs]
 [![Community Forum][forum-shield]][forum]
-
 
 <!--[![GitHub Release][releases-shield]][releases]
 
@@ -25,11 +24,9 @@ This is an [AppDaemon Addon](https://github.com/hassio-addons/addon-appdaemon) f
 [![Discord][discord-shield]][discord]
 -->
 
-
 ## Configuration & Requirements
 
 As this is an AppDaemon integration installation is a bit more complex than other integrations and you will need to make a variety of mods to your configuration files. I suggest you install the [**Studio Code Server**](https://github.com/hassio-addons/addon-vscode/blob/main/README.md) addon to assist in the process.
-
 
 ### 1) - Modify AppDaemon Packages
 
@@ -41,7 +38,9 @@ system_packages:
   - chromium
 python_packages:
   - mintapi
+  - numpy
 ```
+
 or like
 
 ![](docs/AppDaemonOptions.yaml.png)
@@ -51,6 +50,7 @@ or visually like:
 ![](docs/AppDaemonOptions.png)
 
 Once you hit save AppDaemon will then install the correct packages.
+
 ### Modify various files
 
 Assuming you'v installed the **Studio Code Server** plugin and you can access it from the tool bar click:
@@ -106,7 +106,6 @@ mint_email: <EMAIL_FOR_MINT>
 ```
 
 *Refer to the [mintapi backing library](https://github.com/mintapi/mintapi#option-1-totp) for how to configure your `mint_mfa_token`*
-
 
 ### Lastly its time to create an App Description
 
